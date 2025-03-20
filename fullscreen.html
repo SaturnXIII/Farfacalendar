@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <link rel="icon" type="image/png" href="https://em-content.zobj.net/source/microsoft-teams/363/spiral-calendar_1f5d3-fe0f.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Playwrite+CU+Guides&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Farfacalendar - Vue 7 jours</title>
+  <script src="https://cdn.jsdelivr.net/npm/ical.js@1.5.0/build/ical.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #f6f8fd 0%, #f1f4f9 100%);
+      min-height: 100vh;
+      color: #2d3748;
+      line-height: 1.5;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 585 172.8" width="585" height="172.8" style="opacity: 0.6; filter: blur(2px) grayscale(0);"><text x="0em" y="1em" font-size="72" transform="rotate(337 45 43.2)">💅</text><text x="1.625em" y="2em" font-size="72" transform="rotate(337 162 115.2)">🙀</text><text x="3.25em" y="1em" font-size="72" transform="rotate(337 279 43.2)">😻</text><text x="4.875em" y="2em" font-size="72" transform="rotate(337 396 115.2)">😹</text><text x="6.5em" y="1em" font-size="72" transform="rotate(337 513 43.2)">📅</text></svg>');
+      background-attachment: fixed;
+      background-size: 200% auto;
+    }
+
+    .container {
+      max-width: 1800px;
+      margin: 0 auto;
+      padding: 0.75rem;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      opacity: 0;
+      transform: translateY(-20px);
+      animation: fadeInDown 0.6s ease-out forwards;
+    }
+
+    .header h1 {
+      font-family: "Bodoni Moda", serif;
+      font-style: normal;
+      font-size: 2rem;
+      font-weight: 600;
+      color: #f8961e;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.025em;
+      background: white;
+      padding: 0.2em 0.4em;
+      display: inline;
+      border-radius: 4px;
+    }
+
+    .header p {
+      font-size: 1rem;
+      color: #4a5568;
+      max-width: 600px;
+      margin: 0.5rem auto;
+    }
+
+    .user-name {
+      font-weight: 600;
+      color: var(--user-color, #3182ce);
+      font-size: 1.1rem;
+      background: white;
+      padding: 0.2em 0.6em;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+      display: inline-block;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-top: 0.75rem;
+      color: #4a5568;
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: color 0.2s ease;
+    }
+
+    .back-link:hover {
+      color: #f8961e;
+    }
+
+    .user-selector {
+      margin: 0.75rem auto;
+      display: flex;
+      justify-content: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      max-width: 100%;
+      overflow-x: auto;
+      padding: 0.3rem 0;
+    }
+
+    .user-chip {
+      padding: 0.4rem 0.8rem;
+      background: white;
+      border-radius: 50px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
+      color: #4a5568;
+      text-decoration: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .user-chip:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .user-chip.active {
+      border-color: var(--chip-color, #3182ce);
+      color: var(--chip-color, #3182ce);
+      font-weight: 600;
+    }
+
+    .week-nav {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      align-items: center;
+    }
+
+    .nav-button {
+      background: white;
+      border: none;
+      border-radius: 50px;
+      padding: 0.4rem 0.8rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: #4a5568;
+      transition: all 0.2s ease;
+    }
+
+    .nav-button:hover {
+      background: #f8961e;
+      color: white;
+    }
+
+    .current-date {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #4a5568;
+    }
+
+    .week-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+      opacity: 0;
+      animation: fadeIn 0.8s ease-out 0.3s forwards;
+    }
+
+    .day-column {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 0.5rem;
+    }
+
+    .day-header {
+      text-align: left;
+      padding-bottom: 0.5rem;
+      margin-bottom: 0.5rem;
+      border-bottom: 1px solid #edf2f7;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .day-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .day-name {
+      font-weight: 600;
+      font-size: 1rem;
+      color: #2d3748;
+    }
+
+    .day-date {
+      font-size: 0.8rem;
+      color: #718096;
+    }
+
+    .today .day-header {
+      background-color: #ebf8ff;
+      margin: -0.75rem -0.75rem 0.5rem -0.75rem;
+      padding: 0.75rem;
+      border-radius: 12px 12px 0 0;
+    }
+
+    .today .day-name {
+      color: #3182ce;
+      font-weight: 700;
+    }
+
+    .event-count {
+      font-size: 0.8rem;
+      color: #718096;
+      background: #f1f5f9;
+      padding: 0.2rem 0.5rem;
+      border-radius: 50px;
+      min-width: 24px;
+      text-align: center;
+    }
+
+    .event {
+      background: #f7fafc;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      border-left: 3px solid var(--accent-color, #3182ce);
+      animation: fadeIn 0.5s ease forwards;
+      position: relative;
+    }
+
+    .event-time {
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+      display: block;
+    }
+
+    .event-summary {
+      color: #4a5568;
+      margin-bottom: 0.25rem;
+      line-height: 1.4;
+    }
+
+    .event-location {
+      font-size: 0.75rem;
+      color: #718096;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .location-icon {
+      width: 12px;
+      height: 12px;
+      opacity: 0.7;
+    }
+
+    .person-indicator {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--accent-color, #3182ce);
+    }
+
+    .event-person {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      margin-top: 0.4rem;
+    }
+
+    .person-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--accent-color, #3182ce);
+      display: inline-block;
+      margin-right: 0.25rem;
+    }
+
+    .no-events {
+      text-align: center;
+      color: #a0aec0;
+      font-size: 0.875rem;
+      padding: 1rem;
+      margin: 0.5rem 0;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 5rem;
+      font-size: 1.25rem;
+      color: #4a5568;
+    }
+
+    .loading::after {
+      content: '...';
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+
+    .error-message {
+      text-align: center;
+      padding: 2rem;
+      background: #fff5f5;
+      color: #c53030;
+      border-radius: 12px;
+      font-weight: 500;
+      margin: 2rem 0;
+    }
+
+    /* Classes de couleur pour les calendriers */
+    .calendar-1 { --accent-color: #3182ce; --chip-color: #3182ce; --user-color: #3182ce; }
+    .calendar-2 { --accent-color: #38a169; --chip-color: #38a169; --user-color: #38a169; }
+    .calendar-3 { --accent-color: #805ad5; --chip-color: #805ad5; --user-color: #805ad5; }
+    .calendar-4 { --accent-color: #dd6b20; --chip-color: #dd6b20; --user-color: #dd6b20; }
+    .calendar-5 { --accent-color: #d53f8c; --chip-color: #d53f8c; --user-color: #d53f8c; }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60% { content: '...'; }
+      80%, 100% { content: ''; }
+    }
+
+    /* Responsive */
+    @media (min-width: 768px) {
+      .week-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (min-width: 1200px) {
+      .week-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    @media (min-width: 1600px) {
+      .week-grid {
+        grid-template-columns: repeat(7, 1fr);
+      }
+    }
+
+    /* Styles spécifiques pour mobile */
+    @media (max-width: 480px) {
+      .header h1 {
+        font-size: 1.75rem;
+      }
+      
+      .user-selector {
+        overflow-x: auto;
+        justify-content: flex-start;
+        padding-bottom: 0.5rem;
+        margin: 0.5rem -0.75rem;
+        padding: 0.5rem 0.75rem;
+        width: calc(100% + 1.5rem);
+      }
+      
+      .user-chip {
+        padding: 0.35rem 0.7rem;
+        font-size: 0.8rem;
+      }
+      
+      .day-column {
+        padding: 0.65rem;
+      }
+      
+      .event {
+        padding: 0.65rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>Farfacalendar 🗓️</h1>
+      <p>Les 7 prochains jours</p>
+      <div id="user-name" class="user-name"></div>
+      <div class="user-selector" id="user-selector"></div>
+      <a href="index.html" class="back-link">← Retour à la vue principale</a>
+    </header>
+    <div class="week-nav">
+      <button id="prev-day" class="nav-button">← Précédent</button>
+      <div id="current-date" class="current-date">Aujourd'hui</div>
+      <button id="next-day" class="nav-button">Suivant →</button>
+    </div>
+    <div id="calendar" class="week-grid">
+      <div class="loading">Chargement des événements</div>
+    </div>
+  </div>
+  <script>
+    // Récupérer le paramètre d'URL pour l'utilisateur
+    const urlParams = new URLSearchParams(window.location.search);
+    let selectedUser = urlParams.get('user');
+    
+    // Date courante et offset
+    let currentDateOffset = 0;
+    
+    // Les utilisateurs et leurs classes CSS associées
+    const userClassMapping = {};
+    let allUsers = [];
+    let allEvents = [];
+    
+    function parseEvents(data, calendarInfo) {
+      try {
+        const jcalData = ICAL.parse(data);
+        const comp = new ICAL.Component(jcalData);
+        const events = comp.getAllSubcomponents('vevent');
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Créer une date pour 14 jours plus tard (pour avoir plus de données)
+        const twoWeeksLater = new Date(today);
+        twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
+
+        // Ajouter le mapping utilisateur-classe
+        if (!userClassMapping[calendarInfo.name]) {
+          userClassMapping[calendarInfo.name] = calendarInfo.className;
+          allUsers.push(calendarInfo.name);
+        }
+
+        return events
+          .map(event => {
+            const icalEvent = new ICAL.Event(event);
+            const startDate = icalEvent.startDate.toJSDate();
+            const endDate = icalEvent.endDate.toJSDate();
+
+            // Vérifier si l'événement est dans les 14 prochains jours
+            if (startDate >= today && startDate < twoWeeksLater) {
+              return {
+                summary: icalEvent.summary,
+                start: startDate,
+                end: endDate,
+                location: icalEvent.location || '',
+                person: calendarInfo.name,
+                className: calendarInfo.className
+              };
+            }
+            return null;
+          })
+          .filter(event => event !== null)
+          .sort((a, b) => a.start - b.start);
+      } catch (error) {
+        console.error('Erreur lors du parsing des événements:', error);
+        return [];
+      }
+    }
+
+    function formatDate(date) {
+      const options = { weekday: 'long', day: 'numeric', month: 'short' };
+      return date.toLocaleDateString('fr-FR', options);
+    }
+
+    function formatWeekday(date) {
+      return date.toLocaleDateString('fr-FR', { weekday: 'long' });
+    }
+
+    function formatDay(date) {
+      return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    }
+
+    function formatTime(date) {
+      return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function isSameDay(date1, date2) {
+      return date1.getFullYear() === date2.getFullYear() &&
+             date1.getMonth() === date2.getMonth() &&
+             date1.getDate() === date2.getDate();
+    }
+
+    function updateUserSelector() {
+      const selectorEl = document.getElementById('user-selector');
+      selectorEl.innerHTML = '';
+      
+      // Ajouter un chip pour "Tous"
+      const allChip = document.createElement('a');
+      allChip.className = `user-chip ${!selectedUser ? 'active' : ''}`;
+      allChip.textContent = 'Tous';
+      allChip.href = 'fullscreen.html';
+      selectorEl.appendChild(allChip);
+      
+      // Ajouter un chip pour chaque utilisateur
+      allUsers.forEach(user => {
+        const userClass = userClassMapping[user];
+        const userChip = document.createElement('a');
+        userChip.className = `user-chip ${userClass} ${selectedUser === user ? 'active' : ''}`;
+        userChip.style.setProperty('--chip-color', getColorForClass(userClass));
+        userChip.textContent = user;
+        userChip.href = `fullscreen.html?user=${encodeURIComponent(user)}`;
+        selectorEl.appendChild(userChip);
+      });
+      
+      // Mettre à jour l'affichage du nom d'utilisateur
+      const userNameEl = document.getElementById('user-name');
+      if (selectedUser) {
+        userNameEl.textContent = selectedUser;
+        userNameEl.className = `user-name ${userClassMapping[selectedUser] || ''}`;
+        userNameEl.style.setProperty('--user-color', getColorForClass(userClassMapping[selectedUser]));
+      } else {
+        userNameEl.innerHTML = 'Tous les utilisateurs';
+        userNameEl.className = 'user-name';
+      }
+    }
+
+    function displayWeekView() {
+      const calendarEl = document.getElementById('calendar');
+      calendarEl.innerHTML = '';
+      
+      // Base date avec offset
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const baseDate = new Date(today);
+      baseDate.setDate(baseDate.getDate() + currentDateOffset);
+      
+      // Mettre à jour la date courante affichée
+      updateCurrentDateDisplay(baseDate);
+      
+      // Créer les colonnes pour les jours à afficher
+      const daysToShow = window.innerWidth < 768 ? 3 : 7; // Moins de jours sur mobile
+      
+      for (let i = 0; i < daysToShow; i++) {
+        const currentDate = new Date(baseDate);
+        currentDate.setDate(currentDate.getDate() + i);
+        
+        const columnDiv = document.createElement('div');
+        columnDiv.className = `day-column ${isSameDay(currentDate, today) ? 'today' : ''}`;
+        
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'day-header';
+        
+        const dayInfoDiv = document.createElement('div');
+        dayInfoDiv.className = 'day-info';
+        
+        const dayNameDiv = document.createElement('div');
+        dayNameDiv.className = 'day-name';
+        dayNameDiv.textContent = formatWeekday(currentDate);
+        
+        const dayDateDiv = document.createElement('div');
+        dayDateDiv.className = 'day-date';
+        dayDateDiv.textContent = formatDay(currentDate);
+        
+        dayInfoDiv.appendChild(dayNameDiv);
+        dayInfoDiv.appendChild(dayDateDiv);
+        headerDiv.appendChild(dayInfoDiv);
+        
+        // Filtrer les événements pour ce jour
+        const dayEvents = allEvents.filter(event => {
+          if (selectedUser && event.person !== selectedUser) {
+            return false;
+          }
+          return isSameDay(event.start, currentDate);
+        });
+        
+        // Ajouter le compteur d'événements
+        const eventCountDiv = document.createElement('div');
+        eventCountDiv.className = 'event-count';
+        eventCountDiv.textContent = dayEvents.length;
+        headerDiv.appendChild(eventCountDiv);
+        
+        columnDiv.appendChild(headerDiv);
+        
+        if (dayEvents.length === 0) {
+          const noEventsDiv = document.createElement('div');
+          noEventsDiv.className = 'no-events';
+          noEventsDiv.textContent = 'Aucun événement';
+          columnDiv.appendChild(noEventsDiv);
+        } else {
+          // Ajouter les événements à la colonne
+          dayEvents.forEach(event => {
+            const eventDiv = document.createElement('div');
+            eventDiv.className = `event ${event.className}`;
+            eventDiv.style.setProperty('--accent-color', getColorForClass(event.className));
+            
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'event-time';
+            timeSpan.textContent = `${formatTime(event.start)} - ${formatTime(event.end)}`;
+            
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = 'event-summary';
+            summaryDiv.textContent = event.summary;
+            
+            eventDiv.appendChild(timeSpan);
+            eventDiv.appendChild(summaryDiv);
+            
+            if (event.location) {
+              const locationDiv = document.createElement('div');
+              locationDiv.className = 'event-location';
+              
+              // Ajouter une icône de localisation
+              const locationIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+              locationIcon.setAttribute('class', 'location-icon');
+              locationIcon.setAttribute('viewBox', '0 0 24 24');
+              locationIcon.setAttribute('fill', 'none');
+              locationIcon.setAttribute('stroke', 'currentColor');
+              locationIcon.setAttribute('stroke-width', '2');
+              locationIcon.setAttribute('stroke-linecap', 'round');
+              locationIcon.setAttribute('stroke-linejoin', 'round');
+              const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+              path.setAttribute('d', 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z');
+              const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+              circle.setAttribute('cx', '12');
+              circle.setAttribute('cy', '10');
+              circle.setAttribute('r', '3');
+              locationIcon.appendChild(path);
+              locationIcon.appendChild(circle);
+              
+              locationDiv.appendChild(locationIcon);
+              locationDiv.appendChild(document.createTextNode(event.location));
+              eventDiv.appendChild(locationDiv);
+            }
+            
+            // Ajouter un indicateur pour la personne si on affiche tous les utilisateurs
+            if (!selectedUser) {
+              const personDiv = document.createElement('div');
+              personDiv.className = 'event-person';
+              
+              const personDot = document.createElement('span');
+              personDot.className = 'person-dot';
+              personDot.style.backgroundColor = getColorForClass(event.className);
+              
+              personDiv.appendChild(personDot);
+              personDiv.appendChild(document.createTextNode(event.person));
+              personDiv.style.color = getColorForClass(event.className);
+              eventDiv.appendChild(personDiv);
+            }
+            
+            columnDiv.appendChild(eventDiv);
+          });
+        }
+        
+        calendarEl.appendChild(columnDiv);
+      }
+    }
+    
+    function updateCurrentDateDisplay(baseDate) {
+      const currentDateEl = document.getElementById('current-date');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (isSameDay(baseDate, today)) {
+        currentDateEl.textContent = "Aujourd'hui";
+      } else {
+        const options = { day: 'numeric', month: 'short' };
+        currentDateEl.textContent = baseDate.toLocaleDateString('fr-FR', options);
+      }
+    }
+
+    function getColorForClass(className) {
+      switch (className) {
+        case 'calendar-1': return '#3182ce';
+        case 'calendar-2': return '#38a169';
+        case 'calendar-3': return '#805ad5';
+        case 'calendar-4': return '#dd6b20';
+        case 'calendar-5': return '#d53f8c';
+        default: return '#3182ce';
+      }
+    }
+
+    function setupNavigation() {
+      const prevDayButton = document.getElementById('prev-day');
+      const nextDayButton = document.getElementById('next-day');
+      
+      prevDayButton.addEventListener('click', () => {
+        currentDateOffset -= window.innerWidth < 768 ? 3 : 7;
+        displayWeekView();
+      });
+      
+      nextDayButton.addEventListener('click', () => {
+        currentDateOffset += window.innerWidth < 768 ? 3 : 7;
+        displayWeekView();
+      });
+      
+      // Ajouter la navigation par swipe pour mobile
+      let touchStartX = 0;
+      let touchEndX = 0;
+      
+      document.addEventListener('touchstart', e => {
+        touchStartX = e.changedTouches[0].screenX;
+      }, false);
+      
+      document.addEventListener('touchend', e => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+      }, false);
+      
+      function handleSwipe() {
+        if (touchEndX < touchStartX - 50) {
+          // Swipe gauche
+          currentDateOffset += window.innerWidth < 768 ? 3 : 7;
+          displayWeekView();
+        }
+        if (touchEndX > touchStartX + 50) {
+          // Swipe droit
+          currentDateOffset -= window.innerWidth < 768 ? 3 : 7;
+          displayWeekView();
+        }
+      }
+    }
+
+    async function initCalendar() {
+      try {
+        setupNavigation();
+        
+        // Remplacer par votre propre endpoint API
+        const response = await fetch('/api/calendars');
+        const calendars = await response.json();
+
+        allEvents = calendars.flatMap(calendar => 
+          parseEvents(calendar.data, {
+            name: calendar.name,
+            className: calendar.className
+          })
+        );
+
+        // Mettre à jour le sélecteur d'utilisateurs
+        updateUserSelector();
+        
+        displayWeekView();
+        
+        // Gérer le redimensionnement de la fenêtre
+        window.addEventListener('resize', () => {
+          displayWeekView();
+        });
+      } catch (error) {
+        console.error('Erreur lors du chargement des calendriers:', error);
+        document.getElementById('calendar').innerHTML = 
+          '<div class="error-message">Erreur lors du chargement des calendriers. Veuillez vérifier que le serveur est en cours d\'exécution.</div>';
+      }
+    }
+    
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+    // Initialiser le calendrier
+    document.addEventListener('DOMContentLoaded', initCalendar);
+  </script>
+</body>
+</html>
