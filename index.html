@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <link rel="icon" type="image/png" href="https://em-content.zobj.net/source/microsoft-teams/363/spiral-calendar_1f5d3-fe0f.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Playwrite+CU+Guides&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farfacalendar</title>
+    <script src="https://cdn.jsdelivr.net/npm/ical.js@1.5.0/build/ical.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #f6f8fd 0%, #f1f4f9 100%);
+            min-height: 100vh;
+            color: #2d3748;
+            line-height: 1.5;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 585 172.8" width="585" height="172.8" style="opacity: 0.6; filter: blur(2px) grayscale(0);"><text x="0em" y="1em" font-size="72" transform="rotate(337 45 43.2)">💅</text><text x="1.625em" y="2em" font-size="72" transform="rotate(337 162 115.2)">🙀</text><text x="3.25em" y="1em" font-size="72" transform="rotate(337 279 43.2)">😻</text><text x="4.875em" y="2em" font-size="72" transform="rotate(337 396 115.2)">😹</text><text x="6.5em" y="1em" font-size="72" transform="rotate(337 513 43.2)">📅</text></svg>');
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            opacity: 0;
+            transform: translateY(-20px);
+            animation: fadeInDown 0.6s ease-out forwards;
+        }
+
+        .header h1 {
+            font-family: "Bodoni Moda", serif;
+            font-style: normal;
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: #f8961e;
+            margin-bottom: 1rem;
+            letter-spacing: -0.025em;
+            background: white;
+            padding: 0.2em 0.4em;
+            display: inline;
+            border-radius: 4px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            color: #4a5568;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        /* Bouton Statistique */
+        .stats-button {
+            background-color: #f8961e;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.6rem 1.2rem;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .stats-button:hover {
+            background-color: #f08c00;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stats-button:active {
+            transform: translateY(0);
+        }
+
+        #calendar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            opacity: 0;
+            animation: fadeIn 0.8s ease-out 0.3s forwards;
+        }
+
+        .calendar-column {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 1.5rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .calendar-column:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .calendar-column::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--accent-color, #3182ce);
+            border-radius: 4px 4px 0 0;
+        }
+
+        .calendar-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .calendar-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2d3748;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0;
+            transition: color 0.2s ease;
+        }
+
+        .calendar-title:hover {
+            color: var(--accent-color, #3182ce);
+        }
+
+        .color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 2px white, 0 0 0 3px var(--accent-color, #3182ce);
+        }
+
+        .time-range {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .time-range span {
+            display: block;
+            margin: 0.5rem 0;
+            font-size: 0.925rem;
+            color: #4a5568;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .time-range span::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--accent-color, #3182ce);
+            border-radius: 50%;
+            opacity: 0.6;
+        }
+
+        .time-label {
+            font-weight: 500;
+            color: #2d3748;
+        }
+
+        /* Classes de couleur pour les calendriers */
+        .calendar-1 { --accent-color: #3182ce; }
+        .calendar-2 { --accent-color: #38a169; }
+        .calendar-3 { --accent-color: #805ad5; }
+        .calendar-4 { --accent-color: #dd6b20; }
+        .calendar-5 { --accent-color: #d53f8c; }
+
+        .person3 .calendar-column::before {
+            --accent-color: #805ad5;
+        }
+
+        .person4 .calendar-column::before {
+            --accent-color: #ed64a6;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Loading state */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #4a5568;
+            font-size: 1.1rem;
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60% { content: '...'; }
+            80%, 100% { content: ''; }
+        }
+
+        /* Error state */
+        .error-message {
+            text-align: center;
+            padding: 2rem;
+            background: #fff5f5;
+            color: #c53030;
+            border-radius: 12px;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .calendar-column {
+                margin-bottom: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Farfacalendar 🗓️</h1>
+            <p>Calendrier d'équipe partagé</p>
+            <a href="stats.html" class="stats-button">Statistique</a>
+        </header>
+        <div id="calendar">
+            <div class="loading">Chargement des calendriers</div>
+        </div>
+    </div>
+    <script>
+        function parseEvents(data, calendarInfo) {
+            try {
+                const jcalData = ICAL.parse(data);
+                const comp = new ICAL.Component(jcalData);
+                const events = comp.getAllSubcomponents('vevent');
+                
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+
+                return events
+                    .map(event => {
+                        const icalEvent = new ICAL.Event(event);
+                        const startDate = icalEvent.startDate.toJSDate();
+                        const endDate = icalEvent.endDate.toJSDate();
+
+                        // Vérifier si l'événement est aujourd'hui
+                        if (startDate >= today && startDate < tomorrow) {
+                            return {
+                                summary: icalEvent.summary,
+                                start: startDate,
+                                end: endDate,
+                                location: icalEvent.location || '',
+                                person: calendarInfo.name,
+                                className: calendarInfo.className
+                            };
+                        }
+                        return null;
+                    })
+                    .filter(event => event !== null)
+                    .sort((a, b) => a.start - b.start);
+            } catch (error) {
+                console.error('Erreur lors du parsing des événements pour ' + calendarInfo.name + ':', error);
+                return [];
+            }
+        }
+
+        function formatDate(date) {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            return date.toLocaleDateString('fr-FR', options);
+        }
+
+        function formatTime(date) {
+            return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function displayEvents(allPersons) {
+            const calendar = document.getElementById('calendar');
+            calendar.innerHTML = '';
+
+            // Afficher toutes les personnes, même celles sans événements
+            allPersons.forEach(person => {
+                const columnDiv = document.createElement('div');
+                columnDiv.className = `calendar-column ${person.className}`;
+
+                const header = document.createElement('div');
+                header.className = 'calendar-header';
+                
+                const title = document.createElement('a');
+                title.href = `fullscreen.html?user=${encodeURIComponent(person.name)}`;
+                title.className = 'calendar-title';
+                title.innerHTML = `<span class="color-dot"></span>${person.name}`;
+                header.appendChild(title);
+
+                const eventsDiv = document.createElement('div');
+                eventsDiv.className = 'time-range';
+
+                if (!person.events || person.events.length === 0) {
+                    eventsDiv.innerHTML = '<span>Aucun événement aujourd\'hui</span>';
+                } else {
+                    person.events.forEach(event => {
+                        const eventSpan = document.createElement('span');
+                        eventSpan.innerHTML = `
+                            <span class="time-label">${formatTime(event.start)} - ${formatTime(event.end)}</span>
+                            ${event.summary}
+                            ${event.location ? `<br><small>${event.location}</small>` : ''}
+                        `;
+                        eventsDiv.appendChild(eventSpan);
+                    });
+                }
+
+                columnDiv.appendChild(header);
+                columnDiv.appendChild(eventsDiv);
+                calendar.appendChild(columnDiv);
+            });
+        }
+
+        async function initCalendar() {
+            try {
+                // Remplacez l'URL par une URL configurable ou un chemin relatif
+                const response = await fetch('/api/calendars');
+                const calendars = await response.json();
+                
+                // Afficher les données brutes dans la console pour déboguer
+                console.log('Calendriers reçus:', calendars);
+                
+                // Créer un tableau de personnes
+                const allPersons = calendars.map(calendar => {
+                    // Extraire les événements pour cette personne
+                    const events = parseEvents(calendar.data, {
+                        name: calendar.name,
+                        className: calendar.className
+                    });
+                    
+                    // Retourner un objet pour cette personne avec ses événements
+                    return {
+                        name: calendar.name,
+                        className: calendar.className,
+                        events: events
+                    };
+                });
+                
+                // Afficher toutes les personnes
+                displayEvents(allPersons);
+                
+            } catch (error) {
+                console.error('Erreur lors du chargement des calendriers:', error);
+                document.getElementById('calendar').innerHTML = 
+                    '<div class="error-message">Erreur lors du chargement des calendriers. Veuillez vérifier que le serveur est en cours d\'exécution.</div>';
+            }
+        }
+
+        // Initialiser le calendrier
+        initCalendar();
+    </script>
+</body>
+</html>
