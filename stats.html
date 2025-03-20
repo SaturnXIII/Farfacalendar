@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <link rel="icon" type="image/png" href="https://em-content.zobj.net/source/microsoft-teams/363/spiral-calendar_1f5d3-fe0f.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Playwrite+CU+Guides&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistiques - Farfacalendar</title>
+    <script src="https://cdn.jsdelivr.net/npm/ical.js@1.5.0/build/ical.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #f6f8fd 0%, #f1f4f9 100%);
+            min-height: 100vh;
+            color: #2d3748;
+            line-height: 1.5;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 585 172.8" width="585" height="172.8" style="opacity: 0.3; filter: blur(2px) grayscale(0);"><text x="0em" y="1em" font-size="72" transform="rotate(337 45 43.2)">📊</text><text x="1.625em" y="2em" font-size="72" transform="rotate(337 162 115.2)">📈</text><text x="3.25em" y="1em" font-size="72" transform="rotate(337 279 43.2)">🔢</text><text x="4.875em" y="2em" font-size="72" transform="rotate(337 396 115.2)">📉</text><text x="6.5em" y="1em" font-size="72" transform="rotate(337 513 43.2)">📋</text></svg>');
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            opacity: 0;
+            transform: translateY(-20px);
+            animation: fadeInDown 0.6s ease-out forwards;
+        }
+
+        .header h1 {
+            font-family: "Bodoni Moda", serif;
+            font-style: normal;
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: #f8961e;
+            margin-bottom: 1rem;
+            letter-spacing: -0.025em;
+            background: white;
+            padding: 0.2em 0.4em;
+            display: inline;
+            border-radius: 4px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            color: #4a5568;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+            opacity: 0;
+            animation: fadeIn 0.6s ease-out 0.2s forwards;
+        }
+
+        .navbar a {
+            padding: 0.75rem 1.5rem;
+            margin: 0 0.5rem;
+            background-color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #4a5568;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .navbar a:hover {
+            background-color: #f8961e;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar a.active {
+            background-color: #f8961e;
+            color: white;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            opacity: 0;
+            animation: fadeIn 0.8s ease-out 0.3s forwards;
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 1.5rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .stats-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--accent-color, #3182ce);
+            border-radius: 4px 4px 0 0;
+        }
+
+        .stats-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .stats-header h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-left: 0.75rem;
+        }
+
+        .color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 2px white, 0 0 0 3px var(--accent-color, #3182ce);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .stat-item {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent-color, #3182ce);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: #4a5568;
+        }
+
+        .chart-container {
+            margin-top: 1.5rem;
+            height: 200px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #4a5568;
+            font-size: 1.1rem;
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60% { content: '...'; }
+            80%, 100% { content: ''; }
+        }
+
+        .error-message {
+            text-align: center;
+            padding: 2rem;
+            background: #fff5f5;
+            color: #c53030;
+            border-radius: 12px;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Classes de couleur pour les calendriers */
+        .calendar-1 { --accent-color: #3182ce; }
+        .calendar-2 { --accent-color: #38a169; }
+        .calendar-3 { --accent-color: #805ad5; }
+        .calendar-4 { --accent-color: #dd6b20; }
+        .calendar-5 { --accent-color: #d53f8c; }
+
+        /* Classes de couleur pour les personnes */
+        .person-1 { --accent-color: #3182ce; }
+        .person-2 { --accent-color: #38a169; }
+        .person-3 { --accent-color: #805ad5; }
+        .person-4 { --accent-color: #dd6b20; }
+        .person-5 { --accent-color: #d53f8c; }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Tableaux */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 2rem;
+            background-color: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .data-table th {
+            background-color: #f7fafc;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table tr:hover {
+            background-color: #f7fafc;
+        }
+
+        .summary-section {
+            margin-top: 3rem;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 2rem;
+        }
+
+        .summary-section h2 {
+            font-size: 1.5rem;
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #f8961e;
+            padding-bottom: 0.5rem;
+            display: inline-block;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .summary-item {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .summary-value {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #f8961e;
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-label {
+            font-size: 1rem;
+            color: #4a5568;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .data-table {
+                font-size: 0.9rem;
+            }
+
+            .navbar {
+                flex-wrap: wrap;
+            }
+
+            .navbar a {
+                margin-bottom: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Statistiques 📊</h1>
+            <p>Analyse des cours et absences pour l'année scolaire</p>
+        </header>
+
+        <nav class="navbar">
+            <a href="index.html">Accueil</a>
+            <a href="stat.html" class="active">Statistiques</a>
+        </nav>
+
+        <div id="stats-container" class="stats-container">
+            <div class="loading">Chargement des statistiques</div>
+        </div>
+
+        <div class="summary-section">
+            <h2>Résumé global</h2>
+            <div id="summary-grid" class="summary-grid">
+                <!-- Sera rempli dynamiquement -->
+            </div>
+        </div>
+
+        <div class="summary-section">
+            <h2>Détails par personne</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Nom</th>
+                        <th>Heures totales</th>
+                        <th>Moyenne hebdo</th>
+                        <th>Cours annulés</th>
+                        <th>Profs absents</th>
+                    </tr>
+                </thead>
+                <tbody id="stats-table-body">
+                    <!-- Sera rempli dynamiquement -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        // Fonction pour calculer la durée en heures d'un événement
+        function calculateEventDuration(event) {
+            const start = new Date(event.start);
+            const end = new Date(event.end);
+            const durationMs = end - start;
+            const durationHours = durationMs / (1000 * 60 * 60);
+            return durationHours;
+        }
+
+        // Fonction pour déterminer si un événement est annulé
+        function isEventCancelled(event) {
+            // Liste complète des mots-clés indiquant une annulation
+            const keywords = [
+                'annulé', 'annule', 'annulation',
+                'absent', 'absence',
+                'reporté', 'reporte', 
+                'cours annulé',
+                'conseil de classe',
+                'prof. absent', 'prof absent'
+            ];
+            
+            const summary = event.summary ? event.summary.toLowerCase() : '';
+            const description = event.description ? event.description.toLowerCase() : '';
+            
+            return keywords.some(keyword => 
+                summary.includes(keyword) || description.includes(keyword)
+            );
+        }
+
+        // Fonction pour déterminer si un événement implique un professeur absent
+        function hasAbsentTeacher(event) {
+            // Liste complète des mots-clés indiquant un professeur absent
+            const keywords = [
+                'prof absent', 'professeur absent', 'enseignant absent',
+                'prof. absent', 'absence prof', 'absence du prof'
+            ];
+            
+            const summary = event.summary ? event.summary.toLowerCase() : '';
+            const description = event.description ? event.description.toLowerCase() : '';
+            
+            return keywords.some(keyword => 
+                summary.includes(keyword) || description.includes(keyword)
+            );
+        }
+
+        // Fonction pour analyser les événements d'un calendrier
+        function analyzeCalendarEvents(events) {
+            // Initialiser les statistiques
+            const stats = {
+                totalHours: 0,
+                weeklyAverage: 0,
+                cancelledClasses: 0,
+                absentTeachers: 0
+            };
+
+            // Calculer le nombre total d'heures
+            events.forEach(event => {
+                const durationHours = calculateEventDuration(event);
+                stats.totalHours += durationHours;
+                
+                // Vérifier si l'événement est annulé
+                if (isEventCancelled(event)) {
+                    stats.cancelledClasses++;
+                }
+                
+                // Vérifier si l'événement implique un professeur absent
+                if (hasAbsentTeacher(event)) {
+                    stats.absentTeachers++;
+                }
+            });
+
+            // Calculer la moyenne hebdomadaire (en supposant 36 semaines d'école par an)
+            stats.weeklyAverage = stats.totalHours / 36;
+
+            return stats;
+        }
+
+        // Fonction pour analyser tous les événements de tous les calendriers sur l'année
+        function parseAllEvents(data, calendarInfo) {
+            try {
+                const jcalData = ICAL.parse(data);
+                const comp = new ICAL.Component(jcalData);
+                const events = comp.getAllSubcomponents('vevent');
+                
+                return events.map(event => {
+                    const icalEvent = new ICAL.Event(event);
+                    return {
+                        summary: icalEvent.summary,
+                        description: icalEvent.description,
+                        start: icalEvent.startDate.toJSDate(),
+                        end: icalEvent.endDate.toJSDate(),
+                        location: icalEvent.location || '',
+                        person: calendarInfo.name,
+                        className: calendarInfo.className
+                    };
+                });
+            } catch (error) {
+                console.error('Erreur lors du parsing des événements pour ' + calendarInfo.name + ':', error);
+                return [];
+            }
+        }
+
+        // Fonction pour afficher les statistiques
+        function displayStats(personsStats) {
+            const statsContainer = document.getElementById('stats-container');
+            const summaryGrid = document.getElementById('summary-grid');
+            const tableBody = document.getElementById('stats-table-body');
+            
+            statsContainer.innerHTML = '';
+            summaryGrid.innerHTML = '';
+            tableBody.innerHTML = '';
+
+            // Calculer les statistiques globales
+            const globalStats = {
+                totalHours: 0,
+                weeklyAverage: 0,
+                cancelledClasses: 0,
+                absentTeachers: 0,
+                personCount: personsStats.length
+            };
+
+            personsStats.forEach(person => {
+                globalStats.totalHours += person.stats.totalHours;
+                globalStats.cancelledClasses += person.stats.cancelledClasses;
+                globalStats.absentTeachers += person.stats.absentTeachers;
+            });
+
+            globalStats.weeklyAverage = globalStats.totalHours / (36 * globalStats.personCount);
+
+            // Afficher le résumé global
+            summaryGrid.innerHTML = `
+                <div class="summary-item">
+                    <div class="summary-value">${globalStats.totalHours.toFixed(1)}</div>
+                    <div class="summary-label">Heures totales</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-value">${globalStats.weeklyAverage.toFixed(1)}</div>
+                    <div class="summary-label">Moyenne hebdo</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-value">${globalStats.cancelledClasses}</div>
+                    <div class="summary-label">Cours annulés</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-value">${globalStats.absentTeachers}</div>
+                    <div class="summary-label">Profs absents</div>
+                </div>
+            `;
+
+            // Créer une carte pour chaque personne
+            personsStats.forEach((person, index) => {
+                // Ajouter une ligne au tableau détaillé
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${person.name}</td>
+                    <td>${person.stats.totalHours.toFixed(1)} h</td>
+                    <td>${person.stats.weeklyAverage.toFixed(1)} h</td>
+                    <td>${person.stats.cancelledClasses}</td>
+                    <td>${person.stats.absentTeachers}</td>
+                `;
+                tableBody.appendChild(row);
+
+                // Créer une carte de statistiques
+                const personClass = `person-${(index % 5) + 1}`;
+                const card = document.createElement('div');
+                card.className = `stats-card ${personClass}`;
+                
+                card.innerHTML = `
+                    <div class="stats-header">
+                        <span class="color-dot"></span>
+                        <h2>${person.name}</h2>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">${person.stats.totalHours.toFixed(1)}</div>
+                            <div class="stat-label">Heures totales</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${person.stats.weeklyAverage.toFixed(1)}</div>
+                            <div class="stat-label">Moyenne hebdo</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${person.stats.cancelledClasses}</div>
+                            <div class="stat-label">Cours annulés</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${person.stats.absentTeachers}</div>
+                            <div class="stat-label">Profs absents</div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chart-${index}"></canvas>
+                    </div>
+                `;
+                
+                statsContainer.appendChild(card);
+            });
+
+            // Créer les graphiques après avoir ajouté les éléments au DOM
+            personsStats.forEach((person, index) => {
+                const ctx = document.getElementById(`chart-${index}`).getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Heures', 'Absences'],
+                        datasets: [{
+                            label: 'Statistiques',
+                            data: [person.stats.totalHours, person.stats.cancelledClasses],
+                            backgroundColor: [
+                                getComputedStyle(document.documentElement).getPropertyValue(`--accent-color`),
+                                '#e53e3e'
+                            ],
+                            borderColor: [
+                                getComputedStyle(document.documentElement).getPropertyValue(`--accent-color`),
+                                '#e53e3e'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        // Initialiser les statistiques
+        async function initStats() {
+            try {
+                // Remplacé l'URL spécifique par une URL générique en configuration
+                const apiUrl = '/api/calendars'; // À configurer dans votre environnement
+                const response = await fetch(apiUrl);
+                const calendars = await response.json();
+                
+                // Analyser chaque calendrier
+                const personsStats = calendars.map(calendar => {
+                    // Extraire tous les événements pour cette personne
+                    const events = parseAllEvents(calendar.data, {
+                        name: calendar.name,
+                        className: calendar.className
+                    });
+                    
+                    // Analyser les événements pour obtenir les statistiques
+                    const stats = analyzeCalendarEvents(events);
+                    
+                    // Retourner un objet pour cette personne avec ses statistiques
+                    return {
+                        name: calendar.name,
+                        className: calendar.className,
+                        stats: stats
+                    };
+                });
+                
+                // Afficher les statistiques
+                displayStats(personsStats);
+                
+            } catch (error) {
+                console.error('Erreur lors du chargement des calendriers:', error);
+                document.getElementById('stats-container').innerHTML = 
+                    '<div class="error-message">Erreur lors du chargement des statistiques. Veuillez vérifier que le serveur est en cours d\'exécution.</div>';
+            }
+        }
+
+        // Initialiser les statistiques
+        initStats();
+    </script>
+</body>
+</html>
