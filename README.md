@@ -1,4 +1,5 @@
-Farfacalendar est une page pour voir le calendrier pronote de ses amis en temps réel grace au ICS.
+Farfacalendar est une page pour voir le calendrier Pronote de ses amis en temps réel grâce au ICS.
+
 
 
 > ## Page d'acceuil ##
